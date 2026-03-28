@@ -1,7 +1,7 @@
 import httpx
 from app.config import settings
 
-HF_LLM_URL = f"https://api-inference.huggingface.co/models/{settings.HF_LLM_MODEL}/v1/chat/completions"
+HF_LLM_URL = "https://router.huggingface.co/v1/chat/completions"
 HEADERS = {
     "Authorization": f"Bearer {settings.HF_API_KEY}",
     "Content-Type": "application/json",
@@ -16,7 +16,6 @@ async def generate_answer(question: str, contexts: list[str]) -> str:
     context_text = "\n\n---\n\n".join(
         [f"[문서 {i+1}]\n{ctx}" for i, ctx in enumerate(contexts)]
     )
-
     user_message = f"""다음 문서들을 참고하여 질문에 답변해주세요.
 
 [참고 문서]
@@ -30,7 +29,7 @@ async def generate_answer(question: str, contexts: list[str]) -> str:
             HF_LLM_URL,
             headers=HEADERS,
             json={
-                "model": settings.HF_LLM_MODEL,
+                "model": "meta-llama/Llama-3.1-8B-Instruct:cerebras",
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_message},
