@@ -1,11 +1,14 @@
-import httpx
+embedder_content = ''import httpx
 from app.config import settings
 
-HF_API_URL = f"https://api-inference.huggingface.co/models/{settings.HF_EMBED_MODEL}"
-HEADERS = {"Authorization": f"Bearer {settings.HF_API_KEY}"}
+# 새 엔드포인트로 변경
+HF_API_URL = f"https://router.huggingface.co/hf-inference/models/{settings.HF_EMBED_MODEL}/pipeline/feature-extraction"
+HEADERS = {
+    "Authorization": f"Bearer {settings.HF_API_KEY}",
+    "Content-Type": "application/json",
+}
 
 async def get_embedding(text: str) -> list[float]:
-    """텍스트를 BGE-M3로 임베딩"""
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(
             HF_API_URL,
@@ -15,13 +18,11 @@ async def get_embedding(text: str) -> list[float]:
         response.raise_for_status()
         result = response.json()
 
-    # HF Feature Extraction API: [[float, ...]] 형태로 반환
     if isinstance(result, list) and isinstance(result[0], list):
         return result[0]
     return result
 
 async def get_embeddings_batch(texts: list[str]) -> list[list[float]]:
-    """배치 임베딩"""
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(
             HF_API_URL,
@@ -30,3 +31,10 @@ async def get_embeddings_batch(texts: list[str]) -> list[list[float]]:
         )
         response.raise_for_status()
         return response.json()
+'''
+
+BASE = "/content/drive/MyDrive/rag-project"
+with open(f"{BASE}/app/embedder.py", "w") as f:
+    f.write(embedder_content)
+
+print("✅ embedder.py 수정 완료")
