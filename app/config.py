@@ -4,7 +4,7 @@ class Settings(BaseSettings):
     # HuggingFace
     HF_API_KEY: str
     HF_EMBED_MODEL: str = "BAAI/bge-m3"
-    HF_LLM_MODEL: str = "meta-llama/Llama-3.1-8B-Instruct"
+    HF_LLM_MODEL: str = "meta-llama/Meta-Llama-3-8B-Instruct"
 
     # Qdrant
     QDRANT_URL: str

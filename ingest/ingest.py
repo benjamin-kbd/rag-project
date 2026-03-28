@@ -7,7 +7,7 @@ Google Colab에서 실행:
 import httpx
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-API_URL = "https://your-render-app.onrender.com"  # Render 배포 URL로 변경
+API_URL = "https://rag-project-cf8p.onrender.com"  # Render 배포 URL로 변경
 
 def load_text_file(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
