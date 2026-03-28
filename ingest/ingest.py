@@ -1,7 +1,8 @@
 import httpx
 import sys
+import os
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_community.embeddings import HuggingFaceEmbeddings
 
 API_URL = "https://rag-api.onrender.com"  # 본인 URL로 변경
 
@@ -23,23 +24,21 @@ def load_pdf(path: str) -> str:
         raise ImportError("pip install pdfplumber 필요")
 
 def semantic_chunk(text: str) -> list[str]:
-    print("BGE-M3 모델 로딩 중... (최초 1회 약 2GB 다운로드)")
+    import torch
+    print("BGE-M3 로딩 중...")
     embeddings = HuggingFaceEmbeddings(
         model_name="BAAI/bge-m3",
-        model_kwargs={"device": "cuda" if __import__("torch").cuda.is_available() else "cpu"},
+        model_kwargs={"device": "cuda" if torch.cuda.is_available() else "cpu"},
         encode_kwargs={"normalize_embeddings": True},
     )
-    print("모델 로딩 완료, Semantic Chunking 시작...")
-
+    print("Semantic Chunking 시작...")
     splitter = SemanticChunker(
         embeddings=embeddings,
         breakpoint_threshold_type="percentile",
         breakpoint_threshold_amount=85,
     )
-
     chunks = splitter.split_text(text)
     chunks = [c.strip() for c in chunks if len(c.strip()) > 50]
-
     print(f"생성된 청크 수: {len(chunks)}")
     for i, c in enumerate(chunks[:3]):
         print(f"  [청크 {i+1}] {c[:80]}...")
@@ -56,6 +55,11 @@ def ingest_to_api(texts: list[str], metadata: list[dict] = None):
     return res.json()
 
 if __name__ == "__main__":
+    # HF 토큰 설정
+    hf_token = os.environ.get("HF_TOKEN", "")
+    if hf_token:
+        os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
+
     if len(sys.argv) < 2:
         print("사용법: python ingest/ingest.py <파일경로>")
         print("예시: python ingest/ingest.py document.txt")
@@ -71,7 +75,6 @@ if __name__ == "__main__":
         text = load_text(path)
 
     print(f"텍스트 길이: {len(text)} 글자")
-
     chunks = semantic_chunk(text)
     result = ingest_to_api(chunks)
     print(f"\n✅ 완료: {result}")
