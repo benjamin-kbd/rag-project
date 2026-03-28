@@ -1,7 +1,7 @@
 import httpx
 from app.config import settings
 
-HF_LLM_URL = f"https://router.huggingface.co/hf-inference/models/{settings.HF_LLM_MODEL}/v1/chat/completions"
+HF_LLM_URL = f"https://api-inference.huggingface.co/models/{settings.HF_LLM_MODEL}/v1/chat/completions"
 HEADERS = {
     "Authorization": f"Bearer {settings.HF_API_KEY}",
     "Content-Type": "application/json",
@@ -9,7 +9,7 @@ HEADERS = {
 
 SYSTEM_PROMPT = """당신은 주어진 문서를 바탕으로 질문에 답변하는 AI 어시스턴트입니다.
 반드시 제공된 컨텍스트만을 사용하여 답변하세요.
-컨텍스트에 없는 정보는 '제공된 문서에서 해당 정보를 찾을 수 없습니다.'라고 답변하세요.
+컨텍스트에 없는 정보는 제공된 문서에서 해당 정보를 찾을 수 없습니다 라고 답변하세요.
 답변은 한국어로 작성하세요."""
 
 async def generate_answer(question: str, contexts: list[str]) -> str:
