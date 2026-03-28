@@ -1,39 +1,77 @@
-"""
-Google Colab에서 실행:
-  1. PDF/텍스트 파일을 청크로 분할
-  2. /ingest 엔드포인트로 전송
-"""
-
 import httpx
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+import sys
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
-API_URL = "https://rag-project-cf8p.onrender.com"  # Render 배포 URL로 변경
+API_URL = "https://rag-api.onrender.com"  # 본인 URL로 변경
 
-def load_text_file(path: str) -> str:
+def load_text(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
-def split_text(text: str, chunk_size=500, chunk_overlap=50) -> list[str]:
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
+def load_pdf(path: str) -> str:
+    try:
+        import pdfplumber
+        text = ""
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n\n"
+        return text
+    except ImportError:
+        raise ImportError("pip install pdfplumber 필요")
+
+def semantic_chunk(text: str) -> list[str]:
+    print("BGE-M3 모델 로딩 중... (최초 1회 약 2GB 다운로드)")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="BAAI/bge-m3",
+        model_kwargs={"device": "cuda" if __import__("torch").cuda.is_available() else "cpu"},
+        encode_kwargs={"normalize_embeddings": True},
     )
-    return splitter.split_text(text)
+    print("모델 로딩 완료, Semantic Chunking 시작...")
+
+    splitter = SemanticChunker(
+        embeddings=embeddings,
+        breakpoint_threshold_type="percentile",
+        breakpoint_threshold_amount=85,
+    )
+
+    chunks = splitter.split_text(text)
+    chunks = [c.strip() for c in chunks if len(c.strip()) > 50]
+
+    print(f"생성된 청크 수: {len(chunks)}")
+    for i, c in enumerate(chunks[:3]):
+        print(f"  [청크 {i+1}] {c[:80]}...")
+    return chunks
 
 def ingest_to_api(texts: list[str], metadata: list[dict] = None):
-    with httpx.Client(timeout=120) as client:
-        response = client.post(
-            f"{API_URL}/ingest",
-            json={"texts": texts, "metadata": metadata or []},
-        )
-        response.raise_for_status()
-        return response.json()
+    print(f"\n{len(texts)}개 청크를 API로 전송 중...")
+    res = httpx.post(
+        f"{API_URL}/ingest",
+        json={"texts": texts, "metadata": metadata or []},
+        timeout=120,
+    )
+    res.raise_for_status()
+    return res.json()
 
 if __name__ == "__main__":
-    # 예시: 텍스트 파일 업로드
-    raw_text = load_text_file("document.txt")
-    chunks = split_text(raw_text)
-    print(f"총 청크 수: {len(chunks)}")
+    if len(sys.argv) < 2:
+        print("사용법: python ingest/ingest.py <파일경로>")
+        print("예시: python ingest/ingest.py document.txt")
+        print("예시: python ingest/ingest.py document.pdf")
+        sys.exit(1)
 
+    path = sys.argv[1]
+    print(f"파일 로딩: {path}")
+
+    if path.endswith(".pdf"):
+        text = load_pdf(path)
+    else:
+        text = load_text(path)
+
+    print(f"텍스트 길이: {len(text)} 글자")
+
+    chunks = semantic_chunk(text)
     result = ingest_to_api(chunks)
-    print(result)
+    print(f"\n✅ 완료: {result}")
