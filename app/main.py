@@ -1,5 +1,8 @@
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
@@ -27,8 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── 스키마 ──────────────────────────────────────────
-
 class QueryRequest(BaseModel):
     question: str
     top_k: int = 5
@@ -37,15 +38,12 @@ class IngestRequest(BaseModel):
     texts: list[str]
     metadata: list[dict] | None = None
 
-# ── 엔드포인트 ──────────────────────────────────────
-
 @app.get("/")
 def root():
     return {"status": "ok", "message": "RAG API 서버가 실행 중입니다."}
 
 @app.post("/query")
 async def query(req: QueryRequest):
-    """질문에 대한 RAG 답변 반환"""
     try:
         result = await run_rag(req.question, top_k=req.top_k)
         return result
@@ -54,7 +52,6 @@ async def query(req: QueryRequest):
 
 @app.post("/ingest")
 async def ingest(req: IngestRequest):
-    """문서 텍스트를 벡터 DB에 저장"""
     try:
         embeddings = await get_embeddings_batch(req.texts)
         count = upsert_documents(req.texts, embeddings, req.metadata)
@@ -65,11 +62,14 @@ async def ingest(req: IngestRequest):
 @app.get("/health")
 def health():
     return {"status": "healthy"}
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/chat")
 def chat_ui():
     return FileResponse("static/index.html")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port)
