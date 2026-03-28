@@ -65,3 +65,11 @@ async def ingest(req: IngestRequest):
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/chat")
+def chat_ui():
+    return FileResponse("static/index.html")
